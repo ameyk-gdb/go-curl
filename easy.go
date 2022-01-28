@@ -3,6 +3,7 @@ package curl
 /*
 #include <stdlib.h>
 #include <curl/curl.h>
+#include <string.h>
 #include "callback.h"
 #include "compat.h"
 
@@ -33,6 +34,30 @@ static CURLcode curl_easy_getinfo_double(CURL *curl, CURLINFO info, double *p) {
 }
 static CURLcode curl_easy_getinfo_slist(CURL *curl, CURLINFO info, struct curl_slist **p) {
  return curl_easy_getinfo(curl, info, p);
+}
+
+static CURLcode curl_easy_certinfo(CURL *curl, CURLINFO info, char **p) {
+	 CURLcode res;
+	 int i;
+	 struct curl_certinfo *ci;
+	res = curl_easy_getinfo(curl, info, &ci);
+    if (!res) {
+       int found = 0;
+       for(i = 0; i < ci->num_of_certs; i++) {
+        struct curl_slist *slist;
+        for(slist = ci->certinfo[i]; slist; slist = slist->next) {
+        	if (strstr(slist->data, "BEGIN CERTIFICATE") != NULL) {
+        		*p = slist->data;
+        		found = 1;
+        		break;
+			}
+        }
+        if (found) {
+        	break;
+        }
+      }
+    }
+ return res;
 }
 
 static CURLFORMcode curl_formadd_name_content_length(
@@ -421,8 +446,14 @@ func (curl *CURL) Getinfo(info CurlInfo) (ret interface{}, err error) {
 	return nil, nil
 }
 
-func (curl *CURL) GetCert() string {
-	return "BEGIN CERTIFICATE"
+func (curl *CURL) GetCert(info CurlInfo) string {
+	p := curl.handle
+	cInfo := C.CURLINFO(info)
+	a_string := C.CString("")
+	defer C.free(unsafe.Pointer(a_string))
+	C.curl_easy_certinfo(p, cInfo, &a_string)
+	ret := C.GoString(a_string)
+	return ret
 }
 
 func (curl *CURL) GetHandle() unsafe.Pointer {
