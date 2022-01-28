@@ -421,6 +421,10 @@ func (curl *CURL) Getinfo(info CurlInfo) (ret interface{}, err error) {
 	return nil, nil
 }
 
+func (curl *CURL) GetCert() string {
+	return "BEGIN CERTIFICATE"
+}
+
 func (curl *CURL) GetHandle() unsafe.Pointer {
 	return curl.handle
 }
